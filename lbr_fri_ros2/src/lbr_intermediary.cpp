@@ -6,10 +6,11 @@ LBRIntermediary::LBRIntermediary(const lbr_fri_ros2::LBRCommandGuard &lbr_comman
 
 bool LBRIntermediary::zero_command_buffer(const KUKA::FRI::LBRState &lbr_state) {
   try {
-    auto commanded_joint_position = lbr_state.getCommandedJointPosition();
-    std::copy(commanded_joint_position,
-              commanded_joint_position + KUKA::FRI::LBRState::NUMBER_OF_JOINTS,
-              lbr_command_buffer_.joint_position.begin());
+    // auto commanded_joint_position = lbr_state.getCommandedJointPosition();
+    // std::copy(commanded_joint_position,
+    //           commanded_joint_position + KUKA::FRI::LBRState::NUMBER_OF_JOINTS,
+    //           lbr_command_buffer_.joint_position.begin());
+    lbr_command_buffer_.joint_position.fill(0.);
     lbr_command_buffer_.wrench.fill(0.);
     lbr_command_buffer_.torque.fill(0.);
 
@@ -37,7 +38,7 @@ bool LBRIntermediary::buffer_to_command(KUKA::FRI::LBRCommand &lbr_command) cons
     switch (lbr_state_buffer_.client_command_mode) {
     case KUKA::FRI::EClientCommandMode::NO_COMMAND_MODE:
       return true;
-    case KUKA::FRI::EClientCommandMode::POSITION:
+    case KUKA::FRI::EClientCommandMode::JOINT_POSITION:
       lbr_command.setJointPosition(lbr_command_buffer_.joint_position.data());
       return true;
     case KUKA::FRI::EClientCommandMode::WRENCH:
@@ -61,10 +62,10 @@ bool LBRIntermediary::buffer_to_command(KUKA::FRI::LBRCommand &lbr_command) cons
 bool LBRIntermediary::state_to_buffer(const KUKA::FRI::LBRState &lbr_state) {
   try {
     lbr_state_buffer_.client_command_mode = lbr_state.getClientCommandMode();
-    auto commanded_joint_position = lbr_state.getCommandedJointPosition();
-    std::copy(commanded_joint_position,
-              commanded_joint_position + KUKA::FRI::LBRState::NUMBER_OF_JOINTS,
-              lbr_state_buffer_.commanded_joint_position.begin());
+    // auto commanded_joint_position = lbr_state.getCommandedJointPosition();
+    // std::copy(commanded_joint_position,
+    //           commanded_joint_position + KUKA::FRI::LBRState::NUMBER_OF_JOINTS,
+    //           lbr_state_buffer_.commanded_joint_position.begin());
     auto commanded_torque = lbr_state.getCommandedTorque();
     std::copy(commanded_torque, commanded_torque + KUKA::FRI::LBRState::NUMBER_OF_JOINTS,
               lbr_state_buffer_.commanded_torque.begin());
