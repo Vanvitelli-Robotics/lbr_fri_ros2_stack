@@ -83,6 +83,7 @@ class AdmittanceControlNode(Node):
         self.wrench_estimator = EndEffectorWrenchEstimator(
             Nmax, smooth, end_effector_link, self.controller.robot_model
         )
+        self.reported_ready = False
 
         # Setup joint position
         self.joint_position = None
@@ -119,6 +120,10 @@ class AdmittanceControlNode(Node):
 
         if not self.wrench_estimator.ready():
             return
+
+        if not self.reported_ready:
+            self.get_logger().info("Controller ready to use!")
+            self.reported_ready = True
 
         # Retrieve wrench estimate
         f_ext = np.array(self.wrench_estimator.estimate_offset_wrench(q, tau_ext))
