@@ -36,7 +36,7 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
 def generate_launch_description() -> LaunchDescription:
     model_arg = DeclareLaunchArgument(
         name="model",
-        default_value="iiwa7",
+        default_value="med7",
         description="The LBR model in use.",
         choices=["iiwa7", "iiwa14", "med7", "med14"],
     )
