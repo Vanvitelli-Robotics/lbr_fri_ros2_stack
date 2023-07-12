@@ -1,63 +1,93 @@
-import kinpy
+import optas
 import numpy as np
-
-from lbr_fri_msgs.msg import LBRCommand, LBRState
 
 
 class AdmittanceController(object):
     def __init__(
         self,
-        robot_description: str,
-        base_link: str = "lbr_link_0",
-        end_effector_link: str = "lbr_link_ee",
-        f_ext_th: np.ndarray = np.array([2.0, 2.0, 2.0, 0.5, 0.5, 0.5]),
-        dq_gain: np.ndarray = np.array([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]),
-        dx_gain: np.ndarray = np.array([1.0, 1.0, 1.0, 20.0, 40.0, 60.0]),
+        node,
+        robot_description,
+        end_effector_link,
     ) -> None:
-        self.lbr_command_ = LBRCommand()
+        # Setup class attributes
+        self.node = node
 
-        self.chain_ = kinpy.build_serial_chain_from_urdf(
-            data=robot_description,
-            root_link_name=base_link,
-            end_link_name=end_effector_link,
+        # Setup robot
+        self.robot_model = optas.RobotModel(
+            urdf_string=robot_description, time_derivs=[1]
+        )
+        self.name = self.robot_model.get_name()
+
+        # Setup optimization builder
+        T = 1
+        builder = optas.OptimizationBuilder(
+            T, robots=self.robot_model, derivs_align=True
         )
 
-        self.dof_ = len(self.chain_.get_joint_parameter_names())
-        self.jacobian_ = np.zeros((6, self.dof_))
-        self.jacobian_inv_ = np.zeros((self.dof_, 6))
-        self.q = np.zeros(self.dof_)
-        self.dq_ = np.zeros(self.dof_)
-        self.tau_ext_ = np.zeros(6)
-        self.dq_gain_ = np.diag(dq_gain)
-        self.dx_gain_ = np.diag(dx_gain)
-        self.f_ext_ = np.zeros(6)
-        self.f_ext_th_ = f_ext_th
-        self.alpha_ = 0.99
+        # Setup parameters
+        f_ext = builder.add_parameter("f_ext", 6)
+        qc = builder.add_parameter("qc", self.robot_model.ndof)
+        dt = builder.add_parameter("dt")
 
-    def __call__(self, lbr_state: LBRState) -> LBRCommand:
-        self.q_ = np.array(lbr_state.measured_joint_position.tolist())
-        self.tau_ext_ = np.array(lbr_state.external_torque.tolist())
+        # Get model state
+        dq = builder.get_model_state(self.name, 0, time_deriv=1)
+        q = qc + dt * dq
 
-        self.jacobian_ = self.chain_.jacobian(self.q_)
+        # Compute jacobian at current state
+        Jc = self.robot_model.get_global_link_geometric_jacobian(end_effector_link, qc)
 
-        self.jacobian_inv_ = np.linalg.pinv(self.jacobian_, rcond=0.05)
-        self.f_ext_ = self.jacobian_inv_.T @ self.tau_ext_
+        # Compute current eff position
+        pc = self.robot_model.get_global_link_position(end_effector_link, qc)
 
-        self.f_ext_ = np.where(
-            abs(self.f_ext_) > self.f_ext_th_,
-            self.dx_gain_ @ np.sign(self.f_ext_) * (abs(self.f_ext_) - self.f_ext_th_),
-            0.0,
+        # Compute goal end-effector velocity
+        gain = optas.DM([0.01, 0.01, 0.01, 0.25, 0.25, 0.25])
+        dx_lim = optas.DM([0.04, 0.04, 0.04, 0.2, 0.2, 0.2])
+        dxg = optas.clip(gain * f_ext, -dx_lim, dx_lim)
+        self.goal_eff_velocity = optas.Function("dxg", [f_ext], [dxg])
+
+        # Cost: goal end-effector velocity
+        dx = Jc @ dq
+        builder.add_cost_term("goal_eff_velocity", optas.sumsqr(dx - dxg))
+
+        # Compute next eff position
+        p = pc + dt * dx[:3]
+
+        # Constraint: y limit
+        py = p[1]
+        builder.add_bound_inequality_constraint("y_bound", -0.3, py, 0.3)
+
+        # Cost: minimize joint velocity
+        w = 0.01
+        builder.add_cost_term("min_dq", w * optas.sumsqr(dq))
+
+        # Constraint: joint position limits
+        builder.add_bound_inequality_constraint(
+            "joint_position_limits",
+            self.robot_model.lower_actuated_joint_limits,
+            q,
+            self.robot_model.upper_actuated_joint_limits,
         )
 
-        # additional smoothing required in python
-        self.dq_ = (
-            self.alpha_ * self.dq_
-            + (1 - self.alpha_) * self.dq_gain_ @ self.jacobian_inv_ @ self.f_ext_
-        )
+        # Setup solver
+        self.solver = optas.CasADiSolver(builder.build()).setup("qpoases")
+        self.solution = None
 
-        self.lbr_command_.joint_position = (
-            np.array(lbr_state.measured_joint_position.tolist())
-            + lbr_state.sample_time * self.dq_
-        ).data
+    def __call__(self, q, f_ext, dt):
+        # Compute/report goal end-effector velocity
+        # dxg = self.goal_eff_velocity(f_ext).toarray().flatten()
+        # self.node.get_logger().info("dxg=" + repr(dxg))
 
-        return self.lbr_command_
+        # Reset optimization problem
+        if self.solution is not None:
+            self.solver.reset_initial_seed(self.solution)
+
+        self.solver.reset_parameters({"f_ext": f_ext, "dt": dt, "qc": q})
+
+        # Solve problem
+        self.solution = self.solver.solve()
+
+        # Compute goal state
+        dq = self.solution[f"{self.name}/dq"].toarray().flatten()
+        qg = q + dt * dq
+
+        return qg
