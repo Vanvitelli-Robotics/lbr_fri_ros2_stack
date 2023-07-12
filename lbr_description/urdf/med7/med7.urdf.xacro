@@ -8,10 +8,11 @@
 
     <xacro:arg name="robot_name" default="lbr" />
     <xacro:arg name="sim" default="true" />
+    <xacro:arg name="world_name" default="world" />
 
     <!-- fix to world -->
-    <link name="world" />
+    <link name="$(arg world_name)" />
 
     <!-- med -->
-    <xacro:med7 parent="world" robot_name="$(arg robot_name)" sim="$(arg sim)" />
+    <xacro:med7 parent="$(arg world_name)" robot_name="$(arg robot_name)" sim="$(arg sim)" />
 </robot>
