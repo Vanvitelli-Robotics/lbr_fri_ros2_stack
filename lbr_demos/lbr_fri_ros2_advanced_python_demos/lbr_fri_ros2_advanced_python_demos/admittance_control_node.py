@@ -4,11 +4,47 @@ from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+
 from lbr_fri_msgs.msg import LBRCommand, LBRState
 
 from .admittance_controller import AdmittanceController
 
 np.set_printoptions(precision=3, suppress=True, linewidth=1000)
+
+
+class ObstacleListener:
+    def __init__(self, node):
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, node)
+
+        self.obs = [None] * 8
+
+        hz = 100
+        dt = 1.0 / float(hz)
+        self.timer = node.create_timer(dt, self.callback)
+
+    def get_position(self, link):
+        link_name = f"static_lbr_link_{link}"
+        try:
+            t = self.tf_buffer.lookup_transform("world", link_name, rclpy.time.Time())
+        except TransformException as ex:
+            return None
+        transl = t.transform.translation
+        return [transl.x, transl.y, transl.z]
+
+    def callback(self):
+        for link in range(7):
+            self.obs[link] = self.get_position(link)
+        self.obs[-1] = self.get_position("ee")
+
+    def ready(self):
+        return all(o is not None for o in self.obs)
+
+    def get_obstacles(self):
+        return np.array(self.obs).T
 
 
 class EndEffectorWrenchEstimator:
@@ -77,6 +113,9 @@ class AdmittanceControlNode(Node):
             end_effector_link,
         )
 
+        # Setup obstacle listener
+        self.obs_listener = ObstacleListener(self)
+
         # Setup wrench estimator
         Nmax = 500
         smooth = 0.1
@@ -110,6 +149,10 @@ class AdmittanceControlNode(Node):
         )
 
     def on_lbr_state_(self, lbr_state: LBRState) -> None:
+        # Check obstacle listener
+        if not self.obs_listener.ready():
+            return
+
         # Extract joint state
         q, tau_ext = lbr_state.measured_joint_position, lbr_state.external_torque
         if self.joint_position is None:
@@ -135,8 +178,11 @@ class AdmittanceControlNode(Node):
         # Retrieve sample time
         dt = lbr_state.sample_time
 
+        # Retrieve obstacles
+        obs = self.obs_listener.get_obstacles()
+
         # Compute goal joint position using admittance controller
-        qg = self.controller(q, f_ext, dt)
+        qg = self.controller(q, f_ext, dt, obs)
 
         # Send command
         lbr_command = LBRCommand()

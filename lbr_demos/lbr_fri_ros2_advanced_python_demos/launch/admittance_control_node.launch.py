@@ -27,13 +27,8 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
     admittance_control_node = Node(
         package="lbr_fri_ros2_advanced_python_demos",
         executable="admittance_control_node",
-        # output="screen",
+        output="screen",
         parameters=[{"robot_description": robot_description}],
-    )
-
-    joint_state_remap = Node(
-        package="lbr_fri_ros2_advanced_python_demos",
-        executable="joint_state_remap",
     )
 
     robot_state_publisher = Node(
@@ -47,7 +42,11 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
 
     static_robot_description = xacro.process(
         urdf,
-        mappings={"sim": "false", "world_name": "static_world", "robot_name": "static_lbr"},
+        mappings={
+            "sim": "false",
+            "world_name": "static_world",
+            "robot_name": "static_lbr",
+        },
     )
 
     static_robot_state_publisher = Node(
@@ -93,7 +92,6 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
 
     nodes = [
         admittance_control_node,
-        joint_state_remap,
         robot_state_publisher,
         rviz,
         visualization,
@@ -101,17 +99,40 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
         static_robot_state_publisher,
     ]
 
-    fake = bool(LaunchConfiguration("fake").perform(context).capitalize())
-    if fake:
+    fake = LaunchConfiguration("fake").perform(context)
+    if fake == "true":
         fake_joint_states = Node(
             package="lbr_fri_ros2_advanced_python_demos",
             executable="fake_lbr",
+        )
+        nodes.append(fake_joint_states)
+    elif fake == "false":
+        joint_state_remap = Node(
+            package="lbr_fri_ros2_advanced_python_demos",
+            executable="joint_state_remap",
+        )
+        nodes.append(joint_state_remap)
+
+    fake_static = LaunchConfiguration("fake_static").perform(context)
+    if fake_static == "true":
+        fake_joint_states = Node(
+            package="lbr_fri_ros2_advanced_python_demos",
+            executable="fake_static_lbr",
         )
 
         world_to_static_robot_base_static_transform_broadcaster = Node(
             package="tf2_ros",
             executable="static_transform_publisher",
-            arguments=["1", "0", "0", str(radians(-30)), "0", "0", "world", "static_world"],
+            arguments=[
+                "0",
+                "0.45",
+                "0",
+                "0",
+                str(radians(-30)),
+                "0",
+                "world",
+                "static_world",
+            ],
         )
 
         nodes.append(fake_joint_states)
@@ -131,9 +152,16 @@ def generate_launch_description() -> LaunchDescription:
     fake_arg = DeclareLaunchArgument(
         name="fake",
         default_value="true",
-        description="Whether to faket the static robot.",
+        description="Whether to fake the robot.",
+        choices=["true", "false"],
+    )
+
+    fake_static_arg = DeclareLaunchArgument(
+        name="fake_static",
+        default_value="true",
+        description="Whether to fake the static robot.",
         choices=["true", "false"],
     )
     return LaunchDescription(
-        [model_arg, fake_arg, OpaqueFunction(function=launch_setup)]
+        [model_arg, fake_arg, fake_static_arg, OpaqueFunction(function=launch_setup)]
     )

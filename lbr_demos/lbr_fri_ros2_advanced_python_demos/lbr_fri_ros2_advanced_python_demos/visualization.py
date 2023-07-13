@@ -33,7 +33,13 @@ class VisualizationNode(Node):
             self.marker_array.markers.append(
                 collision_sphere(f"lbr_link_{link}", radii)
             )
+            self.marker_array.markers.append(
+                collision_sphere(f"static_lbr_link_{link}", radii)
+            )
         self.marker_array.markers.append(collision_sphere("lbr_link_ee", ee_radii))
+        self.marker_array.markers.append(
+            collision_sphere("static_lbr_link_ee", ee_radii)
+        )
 
         # Update marker id's
         for index, marker in enumerate(self.marker_array.markers):

@@ -27,6 +27,7 @@ setup(
             "joint_state_remap = lbr_fri_ros2_advanced_python_demos.joint_state_remap:main",
             "visualization = lbr_fri_ros2_advanced_python_demos.visualization:main",
             "fake_lbr = lbr_fri_ros2_advanced_python_demos.fake_lbr:main",
+            "fake_static_lbr = lbr_fri_ros2_advanced_python_demos.fake_static_lbr:main",            
         ],
     },
 )

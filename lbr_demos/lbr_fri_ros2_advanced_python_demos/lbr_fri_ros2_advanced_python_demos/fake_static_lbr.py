@@ -1,18 +1,21 @@
 import rclpy
 from rclpy.node import Node
 
+import numpy as np
+
 from sensor_msgs.msg import JointState
-from lbr_fri_msgs.msg import LBRState
 
 class FakeLBRNode(Node):
     def __init__(self):
-        super().__init__("fake_lbr_node")
+        super().__init__("fake_static_lbr_node")
+
+        positions = np.deg2rad([0., 30, 0, -60, 0, -60, 0]).tolist()
+        
         self.joint_state = JointState(
-            name=[f"lbr_joint_{i}" for i in range(7)], position=[0.0] * 7
+            name=[f"static_lbr_joint_{i}" for i in range(7)], position=positions
         )
-        self.lbr_state = LBRState(sample_time=0.01, measured_joint_position=[0.0]*7)
         self.pub = self.create_publisher(
-            JointState, "joint_states", qos_profile=1
+            JointState, "static/joint_states", qos_profile=1
         )
         hz = 100
         dt = 1.0 / float(hz)
