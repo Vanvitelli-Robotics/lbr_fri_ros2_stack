@@ -8,7 +8,9 @@ from lbr_fri_msgs.msg import LBRState
 class RemapNode(Node):
     def __init__(self):
         super().__init__("joint_state_remap_node")
-        self.joint_state = JointState(name=[f"lbr_joint_{i}" for i in range(7)])
+        self.declare_parameter("robot_name", "lbr")
+        robot_name = self.get_parameter("robot_name").get_parameter_value().string_value
+        self.joint_state = JointState(name=[f"{robot_name}_joint_{i}" for i in range(7)])
         self.pub = self.create_publisher(JointState, "joint_states", qos_profile=1)
         self.sub = self.create_subscription(
             LBRState, "lbr_state", self.callback, qos_profile=1

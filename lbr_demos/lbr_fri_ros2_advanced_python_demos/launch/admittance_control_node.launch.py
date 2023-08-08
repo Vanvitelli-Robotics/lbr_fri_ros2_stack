@@ -90,6 +90,28 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
         arguments=["0", "0", "0", "0", str(radians(30)), "0", "trolly", "world"],
     )
 
+    world_to_static_pose = [
+        -0.08545104,
+        0.7833463,
+        0.3150752,
+        0.19814314,
+        -0.15631378,
+        -0.63093165,
+        0.73364198,
+    ]
+
+    world_to_static_pose_str = [str(v) for v in world_to_static_pose]
+
+    world_to_static_robot_base_static_transform_broadcaster = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=world_to_static_pose_str
+        + [
+            "world",
+            "static_world",
+        ],
+    )
+
     nodes = [
         admittance_control_node,
         robot_state_publisher,
@@ -97,6 +119,7 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
         visualization,
         trolly_to_world_static_transform_broadcaster,
         static_robot_state_publisher,
+        world_to_static_robot_base_static_transform_broadcaster,
     ]
 
     fake = LaunchConfiguration("fake").perform(context)
@@ -120,23 +143,19 @@ def launch_setup(context: LaunchContext) -> LaunchDescription:
             executable="fake_static_lbr",
         )
 
-        world_to_static_robot_base_static_transform_broadcaster = Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=[
-                "0",
-                "0.45",
-                "0",
-                "0",
-                str(radians(-30)),
-                "0",
-                "world",
-                "static_world",
+        nodes.append(fake_joint_states)
+    elif fake_static == "false":
+        joint_state_remap = Node(
+            name="static_remapper",
+            package="lbr_fri_ros2_advanced_python_demos",
+            executable="joint_state_remap",
+            parameters=[{'robot_name': "static_lbr"}],
+            remappings = [
+                ("/lbr_state", "/static/lbr_state"),
+                ("/joint_states", "/static/joint_states"),                
             ],
         )
-
-        nodes.append(fake_joint_states)
-        nodes.append(world_to_static_robot_base_static_transform_broadcaster)
+        nodes.append(joint_state_remap)
 
     return nodes
 
