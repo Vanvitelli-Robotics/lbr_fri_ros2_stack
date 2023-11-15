@@ -4,6 +4,7 @@ namespace lbr_fri_ros2 {
 Client::Client(const rclcpp::Node::SharedPtr node_ptr)
     : logging_interface_ptr_(node_ptr->get_node_logging_interface()),
       parameters_interface_ptr_(node_ptr->get_node_parameters_interface()),
+      clock_ptr_(node_ptr->get_clock()),
       command_interface_(node_ptr),
       state_interface_(logging_interface_ptr_, parameters_interface_ptr_), open_loop_(true) {
   RCLCPP_INFO(logging_interface_ptr_->get_logger(), "Configuring client.");
@@ -22,11 +23,15 @@ void Client::onStateChange(KUKA::FRI::ESessionState old_state, KUKA::FRI::ESessi
   command_interface_.init_command(robotState());
 }
 
-void Client::monitor() { state_interface_.set_state(robotState()); };
+void Client::monitor() { 
+  auto now = clock_ptr_->now();
+  state_interface_.set_state(robotState(),now); 
+ };
 
 void Client::waitForCommand() {
+  auto now = clock_ptr_->now();
   KUKA::FRI::LBRClient::waitForCommand();
-  state_interface_.set_state(robotState());
+  state_interface_.set_state(robotState(), now);
 
   if (robotState().getClientCommandMode() == KUKA::FRI::EClientCommandMode::TORQUE) {
     command_interface_.get_torque_command(robotCommand(), robotState());
@@ -38,11 +43,12 @@ void Client::waitForCommand() {
 }
 
 void Client::command() {
+  auto now = clock_ptr_->now();
   if (open_loop_) {
     state_interface_.set_state_open_loop(robotState(),
-                                         command_interface_.get_command().joint_position);
+                                         command_interface_.get_command().joint_position, now);
   } else {
-    state_interface_.set_state(robotState());
+    state_interface_.set_state(robotState(), now);
   }
 
   switch (robotState().getClientCommandMode()) {

@@ -23,6 +23,9 @@
 #  * ipo_joint_position [rad]
 #  * tracking_performance [a.u.]
 
+# ROS2 driver side timestamp
+std_msgs/Header header
+
 float64 sample_time
 int8 session_state
 int8 connection_quality
@@ -33,6 +36,7 @@ int8 client_command_mode
 int8 overlay_type
 int8 control_mode
 
+# Controller side timestamp
 uint32 time_stamp_sec
 uint32 time_stamp_nano_sec
 

@@ -31,6 +31,7 @@ public:
 protected:
   rclcpp::node_interfaces::NodeLoggingInterface::SharedPtr logging_interface_ptr_;
   rclcpp::node_interfaces::NodeParametersInterface::SharedPtr parameters_interface_ptr_;
+  rclcpp::Clock::SharedPtr clock_ptr_;
 
   CommandInterface command_interface_;
   StateInterface state_interface_;

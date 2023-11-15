@@ -61,6 +61,7 @@ protected:
   bool on_command_checks_(const int &expected_command_mode);
 
   // state publisher
+  rclcpp::Time last_state_stamp_published_;
   rclcpp::Publisher<lbr_fri_msgs::msg::LBRState>::SharedPtr
       state_pub_;                                /**< Publishes the robot state.*/
   rclcpp::TimerBase::SharedPtr state_pub_timer_; /**< Timer for publishing the robot state.*/

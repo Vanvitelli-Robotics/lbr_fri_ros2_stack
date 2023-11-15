@@ -10,7 +10,8 @@ StateInterface::StateInterface(
       measured_torque_filter_(logging_interface_ptr, parameters_interface_ptr, "measured_torque"),
       filters_init_(false) {}
 
-void StateInterface::set_state(const_fri_state_t_ref state) {
+void StateInterface::set_state(const_fri_state_t_ref state, const rclcpp::Time& stamp) {
+  state_.header.stamp = stamp;
   state_.client_command_mode = state.getClientCommandMode();
   std::memcpy(state_.commanded_joint_position.data(), state.getCommandedJointPosition(),
               sizeof(double) * fri_state_t::NUMBER_OF_JOINTS);
@@ -46,7 +47,10 @@ void StateInterface::set_state(const_fri_state_t_ref state) {
 };
 
 void StateInterface::set_state_open_loop(const_fri_state_t_ref state,
-                                         const_idl_joint_pos_t_ref joint_position) {
+                                         const_idl_joint_pos_t_ref joint_position,
+                                         const rclcpp::Time& stamp
+                                         ) {
+  state_.header.stamp = stamp;
   state_.client_command_mode = state.getClientCommandMode();
   std::memcpy(state_.commanded_joint_position.data(), state.getCommandedJointPosition(),
               sizeof(double) * fri_state_t::NUMBER_OF_JOINTS);

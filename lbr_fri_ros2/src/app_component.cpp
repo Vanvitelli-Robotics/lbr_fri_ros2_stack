@@ -59,6 +59,7 @@ void AppComponent::connect_(const int &port_id, const char *const remote_host,
               client_ptr_->get_state_interface().get_state().sample_time);
 
   // publisher
+  last_state_stamp_published_ = this->app_node_ptr_->now();
   state_pub_ = app_node_ptr_->create_publisher<lbr_fri_msgs::msg::LBRState>("state", 1);
   state_pub_timer_ = app_node_ptr_->create_wall_timer(
       std::chrono::milliseconds(
@@ -181,7 +182,12 @@ bool AppComponent::on_command_checks_(const int &expected_command_mode) {
 }
 
 void AppComponent::on_state_pub_timer_() {
-  state_pub_->publish(client_ptr_->get_state_interface().get_state());
+  // TODO avoid double publish
+  rclcpp::Time state_time = client_ptr_->get_state_interface().get_state().header.stamp;
+  if(state_time > last_state_stamp_published_) {
+    last_state_stamp_published_ = state_time;
+    state_pub_->publish(client_ptr_->get_state_interface().get_state()); // TODO avoid copy?
+  }
 }
 
 void AppComponent::on_app_connect_(const lbr_fri_msgs::srv::AppConnect::Request::SharedPtr request,
