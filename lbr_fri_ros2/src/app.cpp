@@ -72,11 +72,15 @@ void App::run(int rt_prio) {
     RCLCPP_WARN(logging_interface_ptr_->get_logger(), "App already running.");
     return;
   }
-  run_thread_ = std::thread([&]() {
+  run_thread_ = std::thread([this,rt_prio=rt_prio]() {
     if (realtime_tools::has_realtime_kernel()) {
       if (!realtime_tools::configure_sched_fifo(rt_prio)) {
         RCLCPP_WARN(logging_interface_ptr_->get_logger(),
-                    "Failed to set FIFO realtime scheduling policy.");
+                    "Failed to set FIFO (rt_prio=%d) realtime scheduling policy.", rt_prio);
+      }
+      else{
+        RCLCPP_INFO(logging_interface_ptr_->get_logger(),
+                    "Realtime kernel detected and configured - FIFO (rt_prio=%d).", rt_prio);
       }
     } else {
       RCLCPP_WARN(logging_interface_ptr_->get_logger(),
