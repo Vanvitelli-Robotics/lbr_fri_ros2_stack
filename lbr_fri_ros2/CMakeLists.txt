@@ -108,6 +108,56 @@ install(
   RUNTIME DESTINATION lib/lbr_fri_ros2
 )
 
+############### joint_state_publisher_component ###############
+
+add_library(joint_state_publisher_component
+  SHARED
+    src/joint_state_publisher_component.cpp
+)
+
+ament_target_dependencies(joint_state_publisher_component
+  rclcpp
+  rclcpp_components
+  sensor_msgs
+  lbr_fri_msgs
+)
+
+rclcpp_components_register_node(joint_state_publisher_component
+  PLUGIN lbr_fri_ros2::JointStatePublisher
+  EXECUTABLE joint_state_publisher
+)
+
+install(
+  TARGETS joint_state_publisher_component
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/lbr_fri_ros2
+)
+
+############### joint_state_command_component ###############
+
+add_library(joint_state_command_component
+  SHARED
+    src/joint_state_command_component.cpp
+)
+
+ament_target_dependencies(joint_state_command_component
+  rclcpp
+  rclcpp_components
+  sensor_msgs
+  lbr_fri_msgs
+)
+
+rclcpp_components_register_node(joint_state_command_component
+  PLUGIN lbr_fri_ros2::JointStateCommand
+  EXECUTABLE joint_state_command
+)
+
+install(
+  TARGETS joint_state_command_component
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/lbr_fri_ros2
+)
+
 install(
   DIRECTORY config launch
   DESTINATION share/lbr_fri_ros2
